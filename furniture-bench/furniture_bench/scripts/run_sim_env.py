@@ -3,13 +3,13 @@
 import argparse
 import pickle
 
-# import furniture_bench
+import furniture_bench
 
 import gym
 import cv2
 import torch
 import numpy as np
-from src.gym import get_rl_env
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -88,19 +88,12 @@ def main():
         help="GPU device ID used for rendering.",
     )
 
-    parser.add_argument(
-        "--gpu-id",
-        type=int,
-        default=0,
-        help="GPU device ID used for rendering.",
-    )
-
     parser.add_argument("--num-envs", type=int, default=1)
     args = parser.parse_args()
-    from src.gym import get_rl_env
+
     # Create FurnitureSim environment.
-    env = get_rl_env(
-        gpu_id = args.gpu_id,
+    env = gym.make(
+        args.env_id,
         furniture=args.furniture,
         num_envs=args.num_envs,
         resize_img=not args.high_res,
@@ -110,7 +103,9 @@ def main():
         save_camera_input=args.save_camera_input,
         randomness=args.randomness,
         high_random_idx=args.high_random_idx,
-        act_rot_repr=args.act_rot_repr
+        act_rot_repr=args.act_rot_repr,
+        compute_device_id=args.compute_device_id,
+        graphics_device_id=args.graphics_device_id,
     )
 
     # Initialize FurnitureSim.

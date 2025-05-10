@@ -42,4 +42,11 @@ def get_actor(cfg: DictConfig, device) -> Actor:
             cfg=cfg,
             device=device,
         )
+    elif actor_name == "ibc":
+        from src.behavior.ibc import IbcDfoLowdimPolicy
+
+        return IbcDfoLowdimPolicy(
+            cfg=cfg,
+            device=device
+        )
     raise ValueError(f"Unknown actor type: {cfg.actor}")

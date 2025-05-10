@@ -8,6 +8,7 @@ from src.models.vision import VisionEncoder
 import torch
 import torch.nn as nn
 from src.dataset.normalizer import LinearNormalizer
+# from src.behavior.ibc_utils.normalizer import LinearNormalizer as LinearNormalizer_ibc
 from src.models import get_encoder
 
 from ipdb import set_trace as bp  # noqa

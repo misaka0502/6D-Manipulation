@@ -1,0 +1,16 @@
+name: ibc
+action_horizon: ${action_horizon}
+pred_horizon: ${pred_horizon}
+obs_horizon: ${obs_horizon}
+predict_past_actions: ${predict_past_actions}
+flatten_obs: true
+
+andy_train: false
+dropout: 0.1
+horizon: 2
+kevin_inference: false
+n_action_steps: 1
+n_obs_steps: 2
+pred_n_iter: 5
+pred_n_samples: 1024
+train_n_neg: 1024

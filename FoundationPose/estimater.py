@@ -6,7 +6,8 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-
+import sys
+sys.path.append("/home/rlg3/projects/6D-Manipulation/")
 from FoundationPose.Utils import *
 from FoundationPose.datareader import *
 import itertools

@@ -64,7 +64,6 @@ def log_action_mse(log_dict, category, pred_action, gt_action):
 
 def set_dryrun_params(cfg: DictConfig):
     if cfg.dryrun:
-        print("11111111111111")
         OmegaConf.set_struct(cfg, False)
         cfg.training.steps_per_epoch = 10 if cfg.training.steps_per_epoch != -1 else -1
         cfg.data.data_subset = 5

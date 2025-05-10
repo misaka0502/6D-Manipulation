@@ -1,0 +1,39 @@
+# @package _global_
+defaults:
+  - override /actor: ibc
+pred_horizon: 1
+action_horizon: 1
+n_latency_steps: 0
+obs_horizon: 1
+observation_type: state
+optimizer:
+  betas:
+  - 0.95
+  - 0.999
+  eps: 1.0e-08
+  lr: 0.0001
+  weight_decay: 1.0e-06
+
+furniture: ???
+randomness: low
+demo_source: teleop
+
+training:
+  batch_size: 128
+  device: cuda:0
+  gradient_accumulate_every: 1
+  lr_scheduler: cosine
+  lr_warmup_steps: 500
+  max_train_steps: null
+  max_val_steps: null
+  num_epochs: 5000
+  resume: true
+  rollout_every: 50
+  sample_every: 5
+  sample_max_batch: 128
+  seed: 42
+  tqdm_interval_sec: 1.0
+  val_every: 1
+
+wandb:
+  project: ${furniture}-ibc-state
