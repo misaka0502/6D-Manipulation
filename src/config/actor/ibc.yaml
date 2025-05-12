@@ -3,12 +3,12 @@ action_horizon: ${action_horizon}
 pred_horizon: ${pred_horizon}
 obs_horizon: ${obs_horizon}
 predict_past_actions: ${predict_past_actions}
-flatten_obs: true
+flatten_obs: false
 
 andy_train: false
 dropout: 0.1
 horizon: 2
-kevin_inference: false
+kevin_inference: true
 n_action_steps: 1
 n_obs_steps: 2
 pred_n_iter: 5

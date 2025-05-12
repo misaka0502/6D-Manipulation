@@ -72,6 +72,7 @@ def set_dryrun_params(cfg: DictConfig):
         cfg.training.eval_every = 1
 
         if cfg.rollout.rollouts:
+            cfg.rollout.max_steps = 10
             cfg.rollout.every = 1
             # cfg.rollout.num_rollouts = 1
             cfg.rollout.loss_threshold = float("inf")

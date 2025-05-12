@@ -2,7 +2,7 @@ rollouts: true
 every: 10
 loss_threshold: 0.1
 max_steps: 1000
-num_envs: 256
+num_envs: 10
 count: ${rollout.num_envs}
 save_rollouts: false
 save_failures: false

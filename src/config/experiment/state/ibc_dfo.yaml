@@ -1,10 +1,11 @@
 # @package _global_
 defaults:
+  - state/base
   - override /actor: ibc
-pred_horizon: 1
+pred_horizon: 2
 action_horizon: 1
 n_latency_steps: 0
-obs_horizon: 1
+obs_horizon: 2 # Must be consistent with pred_horizon !!!
 observation_type: state
 optimizer:
   betas:

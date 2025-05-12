@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from typing import Union
 from omegaconf import DictConfig
 from src.behavior.base import Actor
+from src.models.mlp_ibc import IBCMLP
 
 
 class IbcDfoLowdimPolicy(Actor):
@@ -12,21 +13,18 @@ class IbcDfoLowdimPolicy(Actor):
         super().__init__(device, cfg)
         actor_cfg = cfg.actor
         in_action_channels = self.action_dim * self.action_horizon
-        in_obs_channels = self.obs_dim
+        in_obs_channels = self.obs_dim * self.obs_horizon
         in_channels = in_action_channels + in_obs_channels
         mid_channels = 1024
         out_channels = 1
         dropout = actor_cfg.dropout
 
-        self.dense0 = nn.Linear(in_features=in_channels, out_features=mid_channels)
-        self.drop0 = nn.Dropout(dropout)
-        self.dense1 = nn.Linear(in_features=mid_channels, out_features=mid_channels)
-        self.drop1 = nn.Dropout(dropout)
-        self.dense2 = nn.Linear(in_features=mid_channels, out_features=mid_channels)
-        self.drop2 = nn.Dropout(dropout)
-        self.dense3 = nn.Linear(in_features=mid_channels, out_features=mid_channels)
-        self.drop3 = nn.Dropout(dropout)
-        self.dense4 = nn.Linear(in_features=mid_channels, out_features=out_channels)
+        self.model = IBCMLP(
+            in_channels=in_channels,
+            mid_channels=mid_channels,
+            out_channels=out_channels,
+            dropout=dropout
+        ).to(device)
 
         self.train_n_neg = actor_cfg.train_n_neg
         self.pred_n_iter = actor_cfg.pred_n_iter
@@ -36,19 +34,6 @@ class IbcDfoLowdimPolicy(Actor):
         self.n_obs_steps = self.obs_horizon
         self.n_action_steps = self.action_horizon
         self.horizon = self.pred_horizon
-    
-    def forward(self, obs, action):
-        B, N, Ta, Da = action.shape
-        B, Do = obs.shape
-        s = obs.reshape(B,1,-1).expand(-1,N,-1)
-        x = torch.cat([s, action.reshape(B,N,-1)], dim=-1).reshape(B*N,-1)
-        x = self.drop0(torch.relu(self.dense0(x)))
-        x = self.drop1(torch.relu(self.dense1(x)))
-        x = self.drop2(torch.relu(self.dense2(x)))
-        x = self.drop3(torch.relu(self.dense3(x)))
-        x = self.dense4(x)
-        x = x.reshape(B,N)
-        return x
 
     # ========= inference  ============
     def _normalized_action(self, nobs: torch.Tensor) -> torch.Tensor:
@@ -56,12 +41,11 @@ class IbcDfoLowdimPolicy(Actor):
         Perform IBC to generate actions given the observation.
         nobs is already normalized.
         """
-        assert len(nobs.shape) == 2
-        B, Do = nobs.shape
-        To = self.n_obs_steps
+        assert len(nobs.shape) == 3
+        B, To, Do = nobs.shape
         assert Do == self.obs_dim
         T = self.horizon
-        Da = self.action_horizon
+        Da = self.action_dim
         Ta = self.n_action_steps
 
         # only take necessary obs
@@ -70,7 +54,7 @@ class IbcDfoLowdimPolicy(Actor):
 
         # first sample
         action_dist = torch.distributions.Uniform(
-            low=naction_stats['max'],
+            low=naction_stats['min'],
             high=naction_stats['max']
         )
         samples = action_dist.sample((B, self.pred_n_samples, Ta)).to(dtype=this_obs.dtype)
@@ -81,7 +65,7 @@ class IbcDfoLowdimPolicy(Actor):
             noise_scale = 3e-2
             for i in range(self.pred_n_iter):
                 # Compute energies.
-                logits = self.forward(this_obs, samples)
+                logits = self.model(this_obs, samples)
                 probs = F.softmax(logits, dim=-1)
 
                 #Resample with replacement.
@@ -93,17 +77,17 @@ class IbcDfoLowdimPolicy(Actor):
                 samples = samples.clamp(min=naction_stats['min'], max=naction_stats['max'])
             
             # Return target with highest probability
-            logits = self.forward(this_obs, samples)
+            logits = self.model(this_obs, samples)
             probs = F.softmax(logits, dim=-1)
             best_idxs = probs.argmax(dim=-1)
-            action_n = samples[torch.arange(samples.size(0)), best_idxs, :]
+            naction = samples[torch.arange(samples.size(0)), best_idxs, :]
         else:
             # andy's implementation
             zero = torch.tensor(0, device=self.device)
             resample_std = torch.tensor(3e-2, device=self.device)
             for i in range(self.pred_n_iter):
                 # Forward pass
-                logits = self.forward(this_obs, samples) # (B, N)
+                logits = self.model(this_obs, samples) # (B, N)
                 prob = torch.softmax(logits, dim=-1)
 
                 if i < (self.pred_n_iter - 1):
@@ -121,7 +105,7 @@ class IbcDfoLowdimPolicy(Actor):
     def compute_loss(self, batch):
         # State already normalized in the dataset
         nobs = self._training_obs(batch, flatten=self.flatten_obs)
-
+        # nobs = nobs.reshape(nobs.shape[0], self.n_obs_steps, -1)
         # Action already normalized in the dataset
         naction = batch["action"]
 
@@ -133,7 +117,7 @@ class IbcDfoLowdimPolicy(Actor):
         T = self.horizon
         B = naction.shape[0]
 
-        this_obs = nobs
+        this_obs = nobs[:,:To]
         start = To - 1
         end = start + Ta
         this_action = naction[:,start:end]
@@ -161,14 +145,14 @@ class IbcDfoLowdimPolicy(Actor):
             labels = torch.zeros(action_samples.shape[:2], 
                 dtype=this_action.dtype, device=this_action.device)
             labels[:,0] = 1
-            logits = self.forward(this_obs, action_samples)
+            logits = self.model(this_obs, action_samples)
             # (B, N)
             logits = torch.log_softmax(logits, dim=-1)
             loss = -torch.mean(torch.sum(logits * labels, axis=-1))
         else:
             labels = torch.zeros((B,),dtype=torch.int64, device=this_action.device)
             # training
-            logits = self.forward(this_obs, action_samples)
+            logits = self.model(this_obs, action_samples)
             loss = F.cross_entropy(logits, labels)
         losses = {"bc_loss": loss.item()}
         return loss, losses

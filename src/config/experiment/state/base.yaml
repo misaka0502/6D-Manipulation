@@ -9,7 +9,7 @@ control:
 
 action_horizon: 8
 pred_horizon: 32
-obs_horizon: 1
+obs_horizon: 2
 
 demo_source: teleop
 
